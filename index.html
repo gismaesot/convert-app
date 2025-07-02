@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>แอปแปลงไฟล์ + คำนวณพื้นที่</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: start;
+      min-height: 100vh;
+      padding: 30px 15px;
+    }
+
+    .section {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+      margin-bottom: 30px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #007BFF;
+    }
+
+    .file-upload {
+      position: relative;
+      display: inline-block;
+      overflow: hidden;
+      background-color: orange;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .file-upload input[type="file"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    #fileName {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    button {
+      background-color: red;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 20px;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: darkred;
+    }
+
+    input[type=number], input[readonly] {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+
+    .row > .field {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .copy-btn {
+      background: #66b3ff; /* สีน้ำเงินอ่อน */
+      border: none;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      margin-top: 5px;
+    }
+
+    .copy-btn:hover {
+      background-color: #3399ff;
+    }
+
+    .clear-btn {
+      background: #f1c40f; /* สีเหลือง */
+      border: none;
+      color: black;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      margin-top: 10px;
+    }
+
+    .clear-btn:hover {
+      background-color: #d4ac0d;
+    }
+
+    hr {
+      border: none;
+      border-top: 3px solid #333; /* เส้นหนาและเข้ม */
+      margin: 40px 0;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <section class="section">
+    <h2>📄 แปลงไฟล์ มาตรา10</h2>
+    <label class="file-upload">
+      เลือกไฟล์ CSV
+      <input type="file" id="csvFile" accept=".csv" onchange="showFileName()" />
+    </label>
+    <div id="fileName"></div>
+    <button onclick="convert()">📥 แปลงและดาวน์โหลด</button>
+  </section>
+
+  <section class="section">
+    <h2>📐 คำนวณพื้นที่</h2>
+
+    <div class="row">
+      <div class="field">
+        <label>ตารางเมตร (m²)</label>
+        <input type="number" id="sqm" oninput="convertBothWays('sqm')">
+        <button class="copy-btn" onclick="copyToClipboard('sqm')">Copy</button>
+      </div>
+      <div class="field">
+        <label>ตารางวา (วา²)</label>
+        <input type="number" id="sqwa" oninput="convertBothWays('sqwa')">
+        <button class="copy-btn" onclick="copyToClipboard('sqwa')">Copy</button>
+      </div>
+    </div>
+    <button class="clear-btn" onclick="clearSection1()">Clear ส่วนนี้</button>
+
+    <hr>
+
+    <div class="row">
+      <div class="field"><label>ไร่</label><input type="number" id="rai" oninput="raiNganWahToTotalWah()"></div>
+      <div class="field"><label>งาน</label><input type="number" id="ngan" oninput="raiNganWahToTotalWah()"></div>
+      <div class="field"><label>วา²</label><input type="number" id="wah" oninput="raiNganWahToTotalWah()"></div>
+    </div>
+    <div class="field">
+      <label>ไร่-งาน-วา รวมเป็น ตารางวา (วา²)</label>
+      <input type="number" id="totalWah" readonly>
+      <button class="copy-btn" onclick="copyToClipboard('totalWah')">Copy</button>
+    </div>
+    <button class="clear-btn" onclick="clearSection2()">Clear ส่วนนี้</button>
+
+    <hr>
+
+    <div class="field">
+      <label>ตารางวา(วา²) แยกเป็น ไร่-งาน-วา </label>
+      <input type="number" id="inputWah" oninput="convertWahToRaiNgan()">
+    </div>
+    <div class="row">
+      <div class="field"><label>ไร่</label><input type="number" id="resultRai" readonly></div>
+      <div class="field"><label>งาน</label><input type="number" id="resultNgan" readonly></div>
+      <div class="field"><label>วา²</label><input type="number" id="resultWah" readonly></div>
+    </div>
+    <button class="copy-btn" onclick="copyRaiNganWah()">Copy ไร่-งาน-วา</button>
+    <button class="clear-btn" onclick="clearSection3()">Clear ส่วนนี้</button>
+  </section>
+</main>
+
+<script>
+  function showFileName() {
+    const fileInput = document.getElementById('csvFile');
+    const fileNameDiv = document.getElementById('fileName');
+    fileNameDiv.textContent = fileInput.files[0]?.name || '';
+  }
+
+  function convert() {
+    const file = document.getElementById('csvFile').files[0];
+    if (!file) return alert('กรุณาเลือกไฟล์ CSV ก่อน');
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const csv = e.target.result;
+      const rows = csv.split('\n').map(row => row.trim()).filter(Boolean).map(row => row.split('|'));
+      if (rows.length === 0) return alert('ไม่พบข้อมูลในไฟล์');
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      XLSX.writeFile(wb, 'มาตรา10.xlsx');
+    };
+    try {
+      reader.readAsText(file, 'tis-620');
+    } catch {
+      reader.readAsText(file, 'utf-8');
+    }
+  }
+
+  function convertBothWays(source) {
+    const sqm = parseFloat(document.getElementById('sqm').value);
+    const sqwa = parseFloat(document.getElementById('sqwa').value);
+    if (source === 'sqm' && !isNaN(sqm)) {
+      document.getElementById('sqwa').value = (sqm / 4).toFixed(2);
+    } else if (source === 'sqwa' && !isNaN(sqwa)) {
+      document.getElementById('sqm').value = (sqwa * 4).toFixed(2);
+    }
+  }
+
+  function raiNganWahToTotalWah() {
+    const rai = parseFloat(document.getElementById('rai').value) || 0;
+    const ngan = parseFloat(document.getElementById('ngan').value) || 0;
+    const wah = parseFloat(document.getElementById('wah').value) || 0;
+    document.getElementById('totalWah').value = (rai * 400 + ngan * 100 + wah).toFixed(2);
+  }
+
+  function convertWahToRaiNgan() {
+    const total = parseFloat(document.getElementById('inputWah').value) || 0;
+    const rai = Math.floor(total / 400);
+    const remainder = total % 400;
+    const ngan = Math.floor(remainder / 100);
+    const wah = (remainder % 100).toFixed(2);
+    document.getElementById('resultRai').value = rai;
+    document.getElementById('resultNgan').value = ngan;
+    document.getElementById('resultWah').value = wah;
+  }
+
+  function copyToClipboard(id) {
+    const val = document.getElementById(id).value;
+    if (val) {
+      navigator.clipboard.writeText(val).then(() => alert(`คัดลอก "${val}" แล้ว`));
+    }
+  }
+
+  function copyRaiNganWah() {
+    const r = document.getElementById('resultRai').value || 0;
+    const n = document.getElementById('resultNgan').value || 0;
+    const w = document.getElementById('resultWah').value || 0;
+    const txt = `${r} ไร่ ${n} งาน ${w} วา²`;
+    navigator.clipboard.writeText(txt).then(() => alert(`คัดลอก "${txt}" แล้ว`));
+  }
+
+  function clearSection1() {
+    document.getElementById('sqm').value = '';
+    document.getElementById('sqwa').value = '';
+  }
+
+  function clearSection2() {
+    ['rai', 'ngan', 'wah', 'totalWah'].forEach(id => document.getElementById(id).value = '');
+  }
+
+  function clearSection3() {
+    ['inputWah', 'resultRai', 'resultNgan', 'resultWah'].forEach(id => document.getElementById(id).value = '');
+  }
+</script>
+</body>
+</html>
